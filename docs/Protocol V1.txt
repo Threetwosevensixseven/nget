@@ -1,0 +1,27 @@
+PROTOCOL V1
+
+Minimum viable protocol for NGET to download itself. Full package functionality in V2 or above.
+
+Server listens on TCP port
+Client connects to listening port
+Server hands off to new TCP port
+Client sends:
+
+PR_REQ_CHECK_PACKAGE
+Client to server
+01 VER (B1)
+NN CSUM (B1) XOR of CSUM_SEED, VER
+
+Server validates
+If valid, server sends:
+
+PR_RSP_CHECK_PACKAGE
+Server to client
+01 VER (B1)
+NN CSUM (B1) XOR of CSUM_SEED, VER, FILELEN and FILE
+NNNN FILELEN (B2)
+NNNN FILE (B<FILELEN>)
+
+Server closes connection immediately
+Client downloads, closes connection, validates, and saves file
+Details TBC, but initial client will download straight to RAM buffer, limit FILELEN to buffer size, and use hardcoded path and filename.

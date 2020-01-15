@@ -1,0 +1,9 @@
+{
+  "appSettings": {
+    "TCPListeningPort": 44444,
+    "ConnectTimeoutMilliseconds": 5000,
+    "SendTimeoutMilliseconds": 5000,
+    "ReceiveTimeoutMilliseconds": 5000,
+    "PackageDir": "..\\..\\..\\..\\..\\..\\dot"
+  }
+}

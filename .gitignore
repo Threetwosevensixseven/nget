@@ -1,1 +1,6 @@
 ZeusBak
+*.suo
+.vs
+bin
+obj
+/src/core/NGetServer/Publish

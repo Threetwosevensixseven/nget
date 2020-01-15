@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "NGetBinaryClient": {
+      "commandName": "Project",
+      "commandLineArgs": "localhost:44444 -i"
+    }
+  }
+}

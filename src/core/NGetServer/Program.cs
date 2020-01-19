@@ -100,9 +100,8 @@ namespace NGetServer
                 else
                 {
                     var resp = req.GetResponse();
-                    var bytes = resp.Serialize(Options.PackageDir);
-                    client.Log("Returning " + resp.ToText());
-                    client.Log("Response is " + ToHex(bytes, bytes.Length));
+                    var bytes = resp.Serialize(Options.PackageDir, Options.PackageFile);
+                    client.Log("Response is " + ToText(bytes, bytes.Length) + " for package " + Options.PackageFile);
                     if (bytes != null && bytes.Length > 0)
                         clientSocket.BeginSend(bytes, 0, bytes.Length, SocketFlags.None,
                             new AsyncCallback(SendData), clientSocket);
@@ -134,6 +133,15 @@ namespace NGetServer
         }
 
         private static string ToHex(Byte[] Data, int Length)
+        {
+            var sb = new StringBuilder();
+            var bs = Data == null ? new byte[0] : Data;
+            for (int i = 0; i < Length; i++)
+                sb.Append(bs[i].ToString("X2"));
+            return sb.ToString();
+        }
+
+        private static string ToText(Byte[] Data, int Length)
         {
             if (Data == null || Data.Length < Length)
                 return "0 bytes";

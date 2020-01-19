@@ -48,6 +48,17 @@ Rst8                    macro(Command)
                         db Command
 mend
 
+Rst18                   macro(ROMAddress)
+                        rst $18
+                        noflow
+                        dw ROMAddress
+mend
+
+BCSpaces                macro(BytesToReserve)
+                        ld bc, BytesToReserve
+                        Rst18(BC_SPACES)
+mend
+
 ESPSendBytes            macro(BufferStart, BufferLength)
                         ld hl, BufferStart
                         ld de, BufferLength
@@ -122,6 +133,11 @@ MirrorA                 macro()
                         db $ED, $24
 mend
 
+CpHL                    macro(Register)
+                        or a
+                        sbc hl, Register
+mend
+
 ESPSetDataBlockHeader   macro(DataAddr, DataLength, Seq)
                         ld hl, DataAddr
                         ld bc, DataLength
@@ -152,5 +168,41 @@ ESPSendCmdWithData2     macro(Op, DataAddr, DataLen, ErrAddr)
                         call ESPSendCmdWithDataProc
 mend
 
+ESPSend                 macro(Text)                     ; 1 <= length(Text) <= 253
+                        ld hl, Address                  ; Start of the text to send
+                        ld e, length(Text)+2            ; Length of the text to send, including terminating CRLF
+                        jp ESPSendProc                  ; Remaining send code is generic and reusable
+Address:                db Text                         ; Text bytes get planted at the end of the macro
+                        db CR, LF                       ; Followed by CRLF
+mend
 
+ESPSendBufferLen        macro(Address, Len)             ; 1 <= length(Text) <= 255 - MUST HAVE CRLF termination
+                        ld hl, Address                  ; Start of the text to send
+                        ld de, Len
+                        call ESPSendBufferProc          ; Remaining send code is generic and reusable
+mend
+
+SafePrintStart          macro()                         ; Included at the start of every routine which calls rst 16
+                        di                              ; Interrupts off while paging. Subsequent code will enable them.
+                        ld (SavedStackPrint), sp        ; Save current stack to be restored in SafePrintEnd()
+                        ld sp, (Return.Stack1)          ; Set stack back to what BASIC had at entry, so safe for rst 16
+                        nextreg $56, 0                  ; Restore what BASIC is expecting to find at $C000 (16K bank 0)
+                        nextreg $57, 1                  ; Restore what BASIC is expecting to find at $E000 (16K bank 0)
+mend
+
+SafePrintEnd            macro()                         ; Included at the end of every routine which calls rst 16
+                        di                              ; Interrupts off while paging. Subsequent code doesn't care.
+                        ld (SavedA), a                  ; Preserve A so it's completely free of side-effects
+                        ld a, (DeallocateBanks.Upper1)  ; Read bank to restore at $C000
+                        cp $FF                          ; If $FF we didn't allocate it yet,
+                        jr z, NotUpper1                 ; so don't restore,
+                        nextreg $56, a                  ; otherwise restore original bank at $C000.
+NotUpper1:              ld a, (DeallocateBanks.Upper2)  ; Read bank to restore at $E000
+                        cp $FF                          ; If $FF we didn't allocate it yet,
+                        jr z, NotUpper2                 ; so don't restore,
+                        nextreg $57, a                  ; otherwise restore original bank at $E000.
+NotUpper2:
+SavedA equ $+1:         ld a, SMC                       ; Restore A so it's completely free of side-effects
+                        ld sp, (SavedStackPrint)        ; Restore stack to what it was before SafePrintStart()
+mend
 

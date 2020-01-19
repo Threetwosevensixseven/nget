@@ -82,5 +82,13 @@ namespace NGetServer.Classes
             }
         }
 
+        public static string PackageFile
+        {
+            get
+
+            {
+                return Get("appSettings:PackageFile");
+            }
+        }
     }
 }

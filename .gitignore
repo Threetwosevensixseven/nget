@@ -4,3 +4,5 @@ ZeusBak
 bin
 obj
 /src/core/NGetServer/Publish
+/dot/NGET.Saved
+/dot/Test.bin

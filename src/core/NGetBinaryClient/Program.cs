@@ -1,6 +1,7 @@
 ﻿using NGetData.Request;
 using NGetData.Response;
 using System;
+using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -78,8 +79,12 @@ namespace NGetBinaryClient
                         if (resp == null)
                             Console.WriteLine("Result could not be processed");
                         else
-                            Console.WriteLine("Result: {0}",
-                              resp.ToText());
+                        {
+                            Console.WriteLine("Result: {0}", resp.ToText());
+                            string fn = Path.GetFullPath("..\\..\\..\\..\\..\\..\\dot\\NGET.Saved");
+                            Console.WriteLine("Saving package NGET to: " + fn);
+                            File.WriteAllBytes(fn, resp.GetFile());
+                        }
                     }
                     Console.WriteLine("Closing connection");
                 }

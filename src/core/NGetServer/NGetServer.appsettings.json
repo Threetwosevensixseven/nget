@@ -4,6 +4,7 @@
     "ConnectTimeoutMilliseconds": 5000,
     "SendTimeoutMilliseconds": 5000,
     "ReceiveTimeoutMilliseconds": 5000,
-    "PackageDir": "..\\..\\..\\..\\..\\..\\dot"
+    "PackageDir": "..\\..\\..\\..\\..\\..\\dot",
+    "PackageFile": "NGET"
   }
 }

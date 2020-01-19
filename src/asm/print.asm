@@ -16,10 +16,14 @@ pend
 Err                     proc
                         ;  "<-Longest valid erro>", 'r'|128
   Break:                db "D BREAK - CONT repeat", 's'|128
+  NoMem:                db "4 Out of memor",        'y'|12
   NotNext:              db "Spectrum Next require", 'd'|128
+  ESPComms:             db "WiFi comms erro",       'r'|128
+  ESPTimeout:           db "WiFi/server timeou",    't'|128
 pend
 
 PrintRst16              proc
+                        SafePrintStart()
                         if DisableScroll
                           ld a, 24                      ; Set upper screen to not scroll
                           ld (SCR_CT), a                ; for another 24 rows of printing
@@ -31,11 +35,14 @@ Loop:                   ld a, (hl)
                         jr z, Return
                         rst 16
                         jr Loop
-Return:                 di
+
+Return:                 //CSBreak()
+                        SafePrintEnd()
                         ret
 pend
 
 PrintRst16Error         proc
+                        SafePrintStart()
                         ei
 Loop:                   ld a, (hl)
                         ld b, a
@@ -45,7 +52,7 @@ Loop:                   ld a, (hl)
                         inc hl
                         rst 16
                         jr Loop
-Return:                 di
+Return:                 SafePrintEnd()
                         ret
 LastChar                and %0 1111111
                         rst 16
@@ -55,6 +62,7 @@ LastChar                and %0 1111111
 pend
 
 PrintAHex               proc
+                        SafePrintStart()
                         ld b, a
                         if DisableScroll
                           ld a, 24                      ; Set upper screen to not scroll
@@ -71,6 +79,7 @@ PrintAHex               proc
                         rst 16
                         ld a, 32
                         rst 16
+                        SafePrintEnd()
                         ret
 Print:                  cp 10
                         ld c, '0'
@@ -82,6 +91,7 @@ Add:                    add a, c
 pend
 
 PrintAHexNoSpace        proc
+                        SafePrintStart()
                         ld b, a
                         if DisableScroll
                           ld a, 24                      ; Set upper screen to not scroll
@@ -94,6 +104,7 @@ PrintAHexNoSpace        proc
                         ld a, b
                         and $0F
                         call Print
+                        SafePrintEnd()
                         ret
 Print:                  cp 10
                         ld c, '0'
@@ -105,6 +116,7 @@ Add:                    add a, c
 pend
 
 PrintChar               proc
+                        SafePrintStart()
                         ld b, a
                         if DisableScroll
                           ld a, 24                      ; Set upper screen to not scroll
@@ -115,14 +127,15 @@ PrintChar               proc
                         jr c, NotPrintable
                         cp 127
                         jr nc, NotPrintable
-                        rst 16
+Print:                  rst 16
+                        SafePrintEnd()
                         ret
 NotPrintable:           ld a, '.'
-                        rst 16
-                        ret
+                        jr Print
 pend
 
 PrintBufferHexProc      proc                            ; hl = Addr, de = Length
+                        SafePrintStart()
                         ld a, (hl)
                         call PrintAHex
                         inc hl
@@ -130,6 +143,7 @@ PrintBufferHexProc      proc                            ; hl = Addr, de = Length
                         ld a, d
                         or e
                         jr nz, PrintBufferHexProc
+                        SafePrintEnd()
                         ret
 pend
 

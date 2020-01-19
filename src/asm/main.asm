@@ -4,7 +4,7 @@ zeusemulate             "48K", "RAW", "NOROM"           ; because that makes it 
 zoSupportStringEscapes  = true;                         ; Download Zeus.exe from http://www.desdes.com/products/oldfiles/
 optionsize 5
 CSpect optionbool 15, -15, "CSpect", false              ; Option in Zeus GUI to launch CSpect
-RealESP optionbool 80, -15, "Real ESP", true            ; Launch CSpect with physical ESP in USB adaptor
+RealESP optionbool 80, -15, "Real ESP", false           ; Launch CSpect with physical ESP in USB adaptor
 UploadNext optionbool 160, -15, "Next", false           ; Copy dot command to Next FlashAir card
 ErrDebug optionbool 212, -15, "Debug", false            ; Print errors onscreen and halt instead of returning to BASIC
 
@@ -16,9 +16,16 @@ Start:
                         db 0
 Begin:                  di                              ; We run with interrupts off apart from printing and halts
                         ld (Return.Stack1), sp          ; Save so we can always return without needing to balance stack
+                        ld sp, $4000                    ; Put stack safe inside dot command
                         ld (SavedArgs), hl              ; Save args for later
+
                         call InstallErrorHandler        ; Handle scroll errors during printing and API calls
+
+                        //CSBreak()
                         PrintMsg(Msg.Startup)
+                        //SafePrintStart()
+                        //SafePrintEnd()
+                        //CSBreak()
 
                         ld a, %0000 0001                ; Test for Next courtesy of Simon N Goodwin, thanks :)
                         MirrorA()                       ; Z80N-only opcode. If standard Z80 or successors, this will
@@ -44,13 +51,51 @@ IsANext:
                         ld (RestoreSpeed.Saved), a      ; Save current speed so it can be restored on exit.
                         nextreg Reg.CPUSpeed, %11       ; Set current desired speed to 28MHz.
 
+                        ; Allocate a 16K package download buffer. We will use IDE_BANK to allocate two 8KB
+                        ; banks, which must be freed before exiting the dot command.
+                        call Allocate8KBank             ; Bank number in A (not E), errors have already been handled
+                        ld (DeallocateBanks.Upper1), a  ; Save bank number
+                        call Allocate8KBank             ; Bank number in A (not E), errors have already been handled
+                        ld (DeallocateBanks.Upper2), a  ; Save bank number
+
+                        ; Now we can page in the the two 8K banks at $C000 and $E000.
+                        ; This paging will need to be undone during cmd exit.
+                        di
+                        nextreg $57, a                  ; Allocated bank for $E000 was already in A, page it in.
+                        ld a, (DeallocateBanks.Upper1)
+                        nextreg $56, a                  ; Page in allocated bank for $C000)
+
+BeginWork:                                              ; Setup is finished, real work of the dot cmd starts here.
                         PrintMsg(Msg.SelfHost)
-                        PrintMsg(Msg.Checking)
+                        ESPSend("ATE0")
+                        ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
+                        call ESPReceiveWaitOK
+                        ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
 
-                        PrintMsg(Msg.Found)
+                        ESPSend("AT+CIPCLOSE")          ; Don't raise error on CIPCLOSE
+                        call ESPReceiveWaitOK           ; Because it might not be open
 
-                        PrintMsg(Msg.Downloaded)
-                        PrintMsg(Msg.Overwriting)
+                        ESPSend("AT+CIPMUX=0")
+                        ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
+                        call ESPReceiveWaitOK
+                        ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
+
+                        ESPSend("AT+CIPSTART=\"TCP\",\"" + NGetServer + "\",44444")
+                        ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
+                        call ESPReceiveWaitOK
+                        ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
+
+                        ESPSend("AT+CIPSEND=2")
+                        ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
+                        call ESPReceiveWaitPrompt
+                        ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no prompt
+                        ESPSendBufferLen(Cmd.GetV1, Cmd.GetV1Len)
+                        ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
+
+                        //PrintMsg(Msg.Checking)
+                        //PrintMsg(Msg.Found)
+                        //PrintMsg(Msg.Downloaded)
+                        //PrintMsg(Msg.Overwriting)
 
                         if (ErrDebug)
                           ; This is a temporary testing point that indicates we have have reached
@@ -67,7 +112,7 @@ IsANext:
                         include "constants.asm"         ; Global constants
                         include "macros.asm"            ; Zeus macros
                         include "general.asm"           ; General routines
-                        //include "esp.asm"               ; ESP and SLIP routines
+                        include "esp.asm"               ; ESP and SLIP routines
                         include "esxDOS.asm"            ; ESXDOS routines
                         include "print.asm"             ; Messaging and error routines
                         include "vars.asm"              ; Global variables

@@ -3,6 +3,7 @@
 ; Application
 ResetWait               equ 5
 DisableScroll           equ false
+NGetServer              equ "192.168.1.3"
 
 ; NextZXOS
 IDE_BANK                equ $01BD
@@ -15,6 +16,9 @@ UART_GetStatus          equ UART_TxD                    ; Reads status bits
 UART_mRX_DATA_READY     equ %xxxxx 0 0 1                ; Status bit masks
 UART_mTX_BUSY           equ %xxxxx 0 1 0                ; Status bit masks
 UART_mRX_FIFO_FULL      equ %xxxxx 1 0 0                ; Status bit masks
+
+; ESP
+ESPTimeout              equ 65535*4;65535               ; Use 10000 for 3.5MHz, but 28NHz needs to be 65535
 
 ; Ports
 Port                    proc
@@ -34,6 +38,10 @@ CR                      equ 13
 LF                      equ 10
 Space                   equ 32
 Copyright               equ 127
+
+; ROM Calls
+BC_SPACES               equ $0030                       ; Reserve BC bytes, rets DE addr first byte, HL addr last byte
+ROMSM                   equ $16B0                       ; (SET-MIN, like BC_SPACES but clears)
 
 ; Screen
 SCREEN                  equ $4000                       ; Start of screen bitmap

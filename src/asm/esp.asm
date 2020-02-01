@@ -175,3 +175,123 @@ CheckTimeout:           //call CheckESPTimeout
                         jp WaitNotBusy
 pend
 
+CheckTimeoutFrame       proc
+                        exx                             ; No routines that call this routine use alt registers
+Value equ $+1:          ld hl, SMC
+                        ld de, (FRAMES)
+                        CpHL(de)
+                        jr z, Failure
+Success:                exx
+                        or a
+                        ret
+Failure:                exx
+                        scf
+                        ret
+pend
+
+ESPReceiveBuffer        proc
+                        di
+                        ld (SaveStack), sp              ; ISV will only update FRAMES is stack is outside divMMC,
+                        ld sp, $0000                    ; so save it, and set it at the top of the IPD buffer.
+                        ld hl, (FRAMES)                 ; Read the current frame,
+                        ld de, ESPTimeoutFrames         ; calculate what the timeout frame would be,
+                        add hl, de
+                        ld (CheckTimeoutFrame.Value), hl; and save that for the check timeout routine.
+                        ld hl, IPDBuffer
+                        ld de, IPDBufferLen
+                        ei                              ; Frame timeouts require interrupts to be on
+ReadLoop:               ld a, high UART_GetStatus       ; Are there any characters waiting?
+                        in a, (low UART_GetStatus)      ; This inputs from the 16-bit address UART_GetStatus
+                        rrca                            ; Check UART_mRX_DATA_READY flag in bit 0
+                        jp nc, CheckTimeout             ; Return immmediately if not ready (we call this in a tight loop)
+                        ld a, high UART_RxD             ; Otherwise Read the byte
+                        in a, (low UART_RxD)            ; from the UART Rx port
+                        ld (hl), a
+                        inc hl
+                        dec de
+                        ld a, d
+                        or e
+                        jp z, Finished
+                        jp ReadLoop
+CheckTimeout:           call CheckTimeoutFrame
+                        jp nc, ReadLoop
+Finished:               ld hl, IPDBufferLen
+                        sbc hl, de
+                        inc hl
+                        ld (ResponseLen), hl
+                        di
+SaveStack equ $+1:      ld sp, SMC
+                        ret
+pend
+
+ParseIPDPacket          proc
+                        ld hl, IPDBuffer
+                        ld bc, (ResponseLen)
+SearchAgain:            ld a, b
+                        or a
+                        jp m, NotFound                  ; If bc has gone negative then not found
+                        or c
+                        jp z, NotFound                  ; If bc is zero then not found
+                        ld a, '+'
+                        cpir
+                        jp po, NotFound
+                        ld a, (hl)
+                        cp 'I'
+                        jr nz, SearchAgain
+                        inc hl
+                        dec bc
+                        ld a, (hl)
+                        cp 'P'
+                        jr nz, SearchAgain
+                        inc hl
+                        dec bc
+                        ld a, (hl)
+                        cp 'D'
+                        jr nz, SearchAgain
+                        inc hl
+                        dec bc
+                        ld a, (hl)
+                        cp ','
+                        jr nz, SearchAgain
+                        inc hl
+ParseNumber:            ld (NumStart), hl
+                        ld bc, 0
+ParseNumberLoop:        ld a, (hl)
+                        cp ':'
+                        jr z, FinishedNumber
+                        cp '0'
+                        jp c, NotFound
+                        cp '9'+1
+                        jp nc, NotFound
+                        inc hl
+                        inc bc
+                        ld a, b
+                        or c
+                        cp 6
+                        jp c, ParseNumberLoop
+FinishedNumber:         inc hl
+                        ld (ResponseStart), hl
+                        push bc
+                        ld hl, 5
+                        or a
+                        sbc hl, bc
+                        ld bc, hl
+                        ld hl, Zeroes
+                        ld de, AsciiDec
+                        ldir
+NumStart equ $+1:       ld hl, SMC
+                        pop bc                          ; The five bytes at AsciiDec are now the zero prefixed
+                        ldir                            ; ASCII decimal IPD packet count.
+                        DecodeDecimal(ParseIPDPacket.AsciiDec, 5) ; HL now equals the IPD packet count
+                        ld (ResponseLen), hl
+                        or a                            ; Clear carry, no error, response round
+                        ret
+NotFound:
+                        scf                             ; Carry, response not found
+                        ret
+AsciiDec:               ds 5
+Zeroes:                 db "00000"
+pend
+
+zeusprinthex ResponseStart, ResponseLen
+

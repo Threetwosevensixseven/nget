@@ -16,10 +16,12 @@ pend
 Err                     proc
                         ;  "<-Longest valid erro>", 'r'|128
   Break:                db "D BREAK - CONT repeat", 's'|128
-  NoMem:                db "4 Out of memor",        'y'|12
+  NoMem:                db "4 Out of memor",        'y'|128
   NotNext:              db "Spectrum Next require", 'd'|128
   ESPComms:             db "WiFi comms erro",       'r'|128
   ESPTimeout:           db "WiFi/server timeou",    't'|128
+  ESPConn:              db "Server connect erro",   'r'|128
+  CoreMin:              db "Core 3.00.07 require",  'd'|128
 pend
 
 PrintRst16              proc
@@ -35,9 +37,7 @@ Loop:                   ld a, (hl)
                         jr z, Return
                         rst 16
                         jr Loop
-
-Return:                 //CSBreak()
-                        SafePrintEnd()
+Return:                 SafePrintEnd()
                         ret
 pend
 
@@ -52,8 +52,7 @@ Loop:                   ld a, (hl)
                         inc hl
                         rst 16
                         jr Loop
-Return:                 SafePrintEnd()
-                        ret
+Return:                 jp PrintRst16.Return
 LastChar                and %0 1111111
                         rst 16
                         ld a, CR                        ; The error message doesn't include a trailing CR in the
@@ -79,8 +78,7 @@ PrintAHex               proc
                         rst 16
                         ld a, 32
                         rst 16
-                        SafePrintEnd()
-                        ret
+                        jp PrintRst16.Return
 Print:                  cp 10
                         ld c, '0'
                         jr c, Add
@@ -104,8 +102,7 @@ PrintAHexNoSpace        proc
                         ld a, b
                         and $0F
                         call Print
-                        SafePrintEnd()
-                        ret
+                        jp PrintRst16.Return
 Print:                  cp 10
                         ld c, '0'
                         jr c, Add
@@ -128,8 +125,7 @@ PrintChar               proc
                         cp 127
                         jr nc, NotPrintable
 Print:                  rst 16
-                        SafePrintEnd()
-                        ret
+                        jp PrintRst16.Return
 NotPrintable:           ld a, '.'
                         jr Print
 pend
@@ -143,7 +139,6 @@ PrintBufferHexProc      proc                            ; hl = Addr, de = Length
                         ld a, d
                         or e
                         jr nz, PrintBufferHexProc
-                        SafePrintEnd()
-                        ret
+                        jp PrintRst16.Return
 pend
 

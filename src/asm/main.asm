@@ -20,12 +20,7 @@ Begin:                  di                              ; We run with interrupts
                         ld (SavedArgs), hl              ; Save args for later
 
                         call InstallErrorHandler        ; Handle scroll errors during printing and API calls
-
-                        //CSBreak()
-                        PrintMsg(Msg.Startup)
-                        //SafePrintStart()
-                        //SafePrintEnd()
-                        //CSBreak()
+                        PrintMsg(Msg.Startup)           ; Now we are safe to print the startup message
 
                         ld a, %0000 0001                ; Test for Next courtesy of Simon N Goodwin, thanks :)
                         MirrorA()                       ; Z80N-only opcode. If standard Z80 or successors, this will
@@ -50,6 +45,14 @@ IsANext:
                         and %11                         ; Mask out everything but the current desired speed.
                         ld (RestoreSpeed.Saved), a      ; Save current speed so it can be restored on exit.
                         nextreg Reg.CPUSpeed, %11       ; Set current desired speed to 28MHz.
+
+                        NextRegRead(Reg.CoreMSB)        ; Core Major/Minor version
+                        ld h, a
+                        NextRegRead(Reg.CoreLSB)        ; Core Sub version
+                        ld l, a                         ; HL = version, should be >= $3007
+                        ld de, CoreMinVersion
+                        CpHL(de)
+                        ErrorIfCarry(Err.CoreMin)       ; Raise ESP error if no response
 
                         ; Allocate a 16K package download buffer. We will use IDE_BANK to allocate two 8KB
                         ; banks, which must be freed before exiting the dot command.
@@ -80,6 +83,8 @@ BeginWork:                                              ; Setup is finished, rea
                         call ESPReceiveWaitOK
                         ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
 
+                        PrintMsg(Msg.Checking)
+
                         ESPSend("AT+CIPSTART=\"TCP\",\"" + NGetServer + "\",44444")
                         ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
                         call ESPReceiveWaitOK
@@ -92,9 +97,14 @@ BeginWork:                                              ; Setup is finished, rea
                         ESPSendBufferLen(Cmd.GetV1, Cmd.GetV1Len)
                         ErrorIfCarry(Err.ESPComms)      ; Raise ESP error if no response
 
-                        //PrintMsg(Msg.Checking)
-                        //PrintMsg(Msg.Found)
-                        //PrintMsg(Msg.Downloaded)
+                        PrintMsg(Msg.Found)
+
+                        call ESPReceiveBuffer           ; This protocol V1 cpde has a fixed 10 seconds timeout
+                        PrintMsg(Msg.Downloaded)
+                        call ParseIPDPacket
+                        //ErrorIfCarry(Err.ESPConn)       ; Raise connection error if no IPD packet
+
+
                         //PrintMsg(Msg.Overwriting)
 
                         if (ErrDebug)

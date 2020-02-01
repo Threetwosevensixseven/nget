@@ -1,9 +1,11 @@
 ; constants.asm
 
 ; Application
+CoreMinVersion          equ $3007                       ; 3.00.07
 ResetWait               equ 5
 DisableScroll           equ false
-NGetServer              equ "192.168.1.3"
+//NGetServer              equ "192.168.1.3"
+NGetServer              equ "nget.nxtel.org"
 
 ; NextZXOS
 IDE_BANK                equ $01BD
@@ -16,9 +18,13 @@ UART_GetStatus          equ UART_TxD                    ; Reads status bits
 UART_mRX_DATA_READY     equ %xxxxx 0 0 1                ; Status bit masks
 UART_mTX_BUSY           equ %xxxxx 0 1 0                ; Status bit masks
 UART_mRX_FIFO_FULL      equ %xxxxx 1 0 0                ; Status bit masks
+IPDBuffer               equ $C000                       ; IPD buffer lives in two banks allocated
+IPDBufferLen            equ $4000                       ; by BANK_IDE, from $C000 to $FFFF.
 
 ; ESP
 ESPTimeout              equ 65535*4;65535               ; Use 10000 for 3.5MHz, but 28NHz needs to be 65535
+ESPTimeout2             equ 10000                       ; Use 10000 for 3.5MHz, but 28NHz needs to be 65535
+ESPTimeoutFrames        equ 1000                        ; Wait 20 seconds
 
 ; Ports
 Port                    proc
@@ -30,6 +36,8 @@ Reg                     proc
   MachineID             equ $00
   Peripheral2           equ $06
   CPUSpeed              equ $07
+  CoreMSB               equ $01
+  CoreLSB               equ $0E
 pend
 
 ; Chars

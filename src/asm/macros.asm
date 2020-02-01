@@ -142,14 +142,6 @@ ESPSetDataBlockHeader   macro(DataAddr, DataLength, Seq)
                         ld hl, DataAddr
                         ld bc, DataLength
                         call ESPSetDataBlockProc
-                        /*
-                        exx
-                        ld hl, DataLength and $FFFF
-                        ld de, DataLength >> 16
-                        ld bc, Seq and $FFFF
-                        ld hl, Seq >> 16
-                        call ESPSetDataBlockProc
-                        */
 mend
 
 ESPSendCmdWithData      macro(Op, DataAddr, DataLen, ErrAddr)
@@ -204,5 +196,13 @@ NotUpper1:              ld a, (DeallocateBanks.Upper2)  ; Read bank to restore a
 NotUpper2:
 SavedA equ $+1:         ld a, SMC                       ; Restore A so it's completely free of side-effects
                         ld sp, (SavedStackPrint)        ; Restore stack to what it was before SafePrintStart()
+mend
+
+DecodeDecimal           macro(Buffer, DigitCount)
+                        ld hl, Buffer
+                        dec hl
+                        ld (DecodeDecimalProc.DecimalBuffer), hl
+                        ld b, DigitCount
+                        call DecodeDecimalProc
 mend
 

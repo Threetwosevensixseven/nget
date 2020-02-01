@@ -66,17 +66,14 @@ ToBasic:
 Stack                   ld sp, SMC                      ; Unwind stack to original point
 Stack1                  equ Stack+1
                         ei
-                        //CSBreak()
                         ret                             ; Return to BASIC
 WithCustomError:
-                        //CSBreak()
                         ld sp, $4000
                         ld (ErrAddr), hl
                         call RestoreSpeed               ; Restore original CPU speed
                         call RestoreF8                  ; Restore original F8 enable/disable state
                         call DeallocateBanks            ; Return allocated 8K banks and restore upper 48K banking
 ErrAddr equ $+1:        ld hl, SMC
-                        //CSBreak()
                         xor a
                         scf                             ; Signal error, hl = custom error message
                         jp Stack                        ; (NextZXOS is not currently displaying standard error messages,
@@ -99,5 +96,49 @@ Deallocate8KBank        proc                            ; Takes bank to dealloca
                         ld e, a                         ; Now move bank to deallocate into E for the API call
                         ld hl, $0003                    ; H = $00: rc_banktype_zx, L = $03: rc_bank_free
                         jr Allocate8KBank.Internal      ; Rest of deallocate is the same as the allocate routine
+pend
+
+DecimalDigits proc Table:
+
+; Multipler  Index  Digits
+  dw      1  ;   0       1
+  dw     10  ;   1       2
+  dw    100  ;   2       3
+  dw   1000  ;   3       4
+  dw  10000  ;   4       5
+pend
+
+DecodeDecimalProc       proc                            ; IN:   b = digit count
+                        ld hl, 0                        ; OUT: hl = return value (0..65535)
+                        ld (Total), hl
+DigitLoop:              ld a, b
+                        dec a
+                        add a, a
+                        ld hl, DecimalDigits.Table
+                        add hl, a
+                        ld e, (hl)
+                        inc hl
+                        ld d, (hl)                      ; de = digit multiplier (1, 10, 100, 1000, 10000)
+                        ld (DigitMultiplier), de
+DecimalBuffer equ $+1:  ld hl, SMC
+                        inc hl
+                        ld (DecimalBuffer), hl
+                        ld a, (hl)
+                        sub '0'                         ; a = digit 0..9 (could also be out of range)
+                        exx
+                        ld hl, 0
+                        or a
+                        jp z, DontAdd
+MultiplyLoop:
+DigitMultiplier equ $+2:add hl, SMC                     ; Next-only opcode
+                        dec a
+                        jp nz, MultiplyLoop
+DontAdd:
+Total equ $+2:          add hl, SMC                     ; Next-only opcode
+                        ld (Total), hl
+                        exx
+                        djnz DigitLoop                  ; Repeat until no more digits left (b = 0..5)
+                        ld hl, (Total)                  ; hl = return value (0..65535)
+                        ret
 pend
 

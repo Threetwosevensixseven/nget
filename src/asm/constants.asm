@@ -2,6 +2,7 @@
 
 ; Application
 CoreMinVersion          equ $3007                       ; 3.00.07
+DotBank1:               equ 30
 ResetWait               equ 5
 DisableScroll           equ false
 //NGetServer              equ "192.168.1.3"
